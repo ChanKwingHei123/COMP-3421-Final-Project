@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataCanvas - Client-Side EDA Studio</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --badge-num: #dbeafe;
+      --badge-num-text: #1d4ed8;
+      --badge-cat: #fef3c7;
+      --badge-cat-text: #b45309;
+    }
+
+    body.dark {
+      --bg: #090d16;
+      --card-bg: #131c2e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #22304a;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --badge-num: #1e3a8a;
+      --badge-num-text: #bfdbfe;
+      --badge-cat: #78350f;
+      --badge-cat-text: #fde68a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2rem 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand h1 {
+      font-size: 1.85rem;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+
+    .brand p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .student-badge {
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+    }
+
+    .student-badge span { color: var(--primary); }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg);
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--primary);
+    }
+
+    input[type="file"] { display: none; }
+
+    button {
+      padding: 0.55rem 1.1rem;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.35);
+      outline-offset: 2px;
+    }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover { background: var(--border); }
+    .btn-success { background: var(--success); color: #fff; }
+
+    select,
+    input[type="number"],
+    input[type="text"] {
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      max-width: 100%;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .metric-card span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .metric-card strong {
+      display: block;
+      margin-top: 0.4rem;
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    .table-responsive {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .badge {
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-num { background: var(--badge-num); color: var(--badge-num-text); }
+    .badge-cat { background: var(--badge-cat); color: var(--badge-cat-text); }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .controls-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 380px;
+      width: 100%;
+    }
+
+    .app-alert {
+      padding: 0.85rem 1rem;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .app-alert[hidden],
+    .empty-state[hidden] { display: none; }
+
+    body.dark .app-alert {
+      background: #3b151b;
+      color: #fecaca;
+      border-color: #7f1d1d;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .empty-icon {
+      font-size: 2rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .empty-state h2 {
+      font-size: 1.15rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p { color: var(--text-muted); }
+
+    .chart-empty-message {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--text-muted);
+      text-align: center;
+      pointer-events: none;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 1rem 0.75rem; }
+      .card { padding: 1rem; }
+      .chart-box { height: 300px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app-container">
+    <header>
+      <div class="brand">
+        <h1>DataCanvas</h1>
+        <p>A Client-Side Exploratory Data Analysis &amp; Visualization Studio</p>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <div class="student-badge">Author: <span>Chan Kwing Hei</span> (25128829D)</div>
+        <button class="btn-outline" onclick="toggleTheme()" id="themeBtn">🌙 Mode</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div
+        class="dropzone"
+        id="dropzone"
+        role="button"
+        tabindex="0"
+        aria-label="Upload a CSV or JSON dataset"
+        onclick="document.getElementById('fileInput').click()"
+        onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('fileInput').click(); }"
+      >
+        <p style="font-weight: 600; font-size: 1.05rem;">
+          Drag &amp; drop your CSV or JSON dataset here, or click to browse
+        </p>
+        <span style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-top: 0.4rem;">
+          Completely client-side execution via HTML5 File &amp; Blob APIs. Zero server uploads.
+        </span>
+        <input type="file" id="fileInput" accept=".csv,.json" />
+      </div>
+
+      <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">
+          Want a quick demo? Test with a pre-loaded dataset:
+        </span>
+        <button class="btn-outline" onclick="loadSampleIris()">⚡ Load Iris Dataset</button>
+      </div>
+    </section>
+
+    <div id="appAlert" class="app-alert" role="alert" aria-live="polite" hidden></div>
+
+    <section class="card empty-state" id="emptyState">
+      <div class="empty-icon" aria-hidden="true">📊</div>
+      <h2>No dataset parsed yet</h2>
+      <p>Please upload a CSV or JSON file above, or click the Iris quick-demo to begin.</p>
+    </section>
+
+    <section class="card" id="statsSection" style="display: none;">
+      <div class="card-title">
+        <span>Dataset Health &amp; Profiling Summary</span>
+        <span id="schemaBadge" class="badge badge-num">Parsed</span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><span>Total Rows</span><strong id="metaRows">0</strong></div>
+        <div class="metric-card"><span>Columns</span><strong id="metaCols">0</strong></div>
+        <div class="metric-card"><span>Numeric Features</span><strong id="metaNumCols">0</strong></div>
+        <div class="metric-card"><span>Categorical Features</span><strong id="metaCatCols">0</strong></div>
+        <div class="metric-card"><span>Missing Cells</span><strong id="metaMissing">0</strong></div>
+      </div>
+
+      <h3 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--text-muted);">
+        Univariate Descriptive Statistics
+      </h3>
+
+      <div class="table-responsive">
+        <table id="summaryTable">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Type</th>
+              <th>Missing %</th>
+              <th>Mean</th>
+              <th>Median</th>
+              <th>Std Dev</th>
+              <th>Q1</th>
+              <th>Q3</th>
+              <th>IQR</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" id="chartSection" style="display: none;">
+      <div class="card-title">
+        <span>Interactive Visual Dashboard</span>
+        <button class="btn-outline" onclick="exportChartPNG()">📷 Export Chart (PNG)</button>
+      </div>
+
+      <div class="controls-row">
+        <label>
+          <strong>Chart:</strong>
+          <select id="chartType" onchange="updateAxisOptions(); renderChart();">
+            <option value="bar">Bar / Frequency</option>
+            <option value="line">Line Trend</option>
+            <option value="scatter">Scatter Plot</option>
+          </select>
+        </label>
+
+        <label>
+          <strong>X-Axis / Feature:</strong>
+          <select id="columnX" onchange="renderChart()"></select>
+        </label>
+
+        <label id="columnYWrapper" style="display: none;">
+          <strong>Y-Axis:</strong>
+          <select id="columnY" onchange="renderChart()"></select>
+        </label>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="canvasChart"></canvas>
+        <div id="chartEmptyMessage" class="chart-empty-message" hidden>
+          No rows match the current filter.
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="filterSection" style="display: none;">
+      <div class="card-title">
+        <span>Data Cleaning &amp; Export (Blob API)</span>
+      </div>
+
+      <div class="controls-row">
+        <label>
+          <strong>Filter Column:</strong>
+          <select id="filterColumn"></select>
+        </label>
+
+        <label>
+          <strong>Condition:</strong>
+          <select id="filterOperator">
+            <option value="">&gt; (Greater than)</option>
+            <option value="<">&lt; (Less than)</option>
+            <option value="==">== (Equals)</option>
+          </select>
+        </label>
+
+        <label>
+          <strong>Threshold:</strong>
+          <input type="text" id="filterValue" placeholder="e.g. 5.0 or Iris-setosa" />
+        </label>
+
+        <button class="btn-primary" onclick="applyFilter()">Apply Filter</button>
+        <button class="btn-outline" onclick="resetFilter()">Reset</button>
+        <button class="btn-success" style="margin-left: auto;" onclick="exportCSV()">📥 Download CSV</button>
+      </div>
+
+      <div class="table-responsive">
+        <table id="previewTable">
+          <thead id="previewThead"></thead>
+          <tbody id="previewTbody"></tbody>
+        </table>
+      </div>
+
+      <p id="tableNotice" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.6rem;">
+        Showing top 10 rows.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    let rawData = [];
+    let activeData = [];
+    let schema = {};
+    let chartInstance = null;
+
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+
+    function showError(message) {
+      const alertBox = document.getElementById("appAlert");
+      alertBox.textContent = message;
+      alertBox.hidden = false;
+    }
+
+    function clearError() {
+      const alertBox = document.getElementById("appAlert");
+      alertBox.textContent = "";
+      alertBox.hidden = true;
+    }
+
+    function isMissing(value) {
+      return value === null ||
+        value === undefined ||
+        value === "" ||
+        (typeof value === "number" && !Number.isFinite(value));
+    }
+
+    dropzone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (event.dataTransfer.files.length) handleUploadedFile(event.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener("click", (event) => event.stopPropagation());
+
+    fileInput.addEventListener("change", (event) => {
+      if (event.target.files.length) handleUploadedFile(event.target.files[0]);
+      event.target.value = "";
+    });
+
+    function handleUploadedFile(file) {
+      clearError();
+
+      if (!file) {
+        showError("Please choose a CSV or JSON file.");
+        return;
+      }
+
+      const extension = file.name.split(".").pop().toLowerCase();
+
+      if (extension !== "csv" && extension !== "json") {
+        showError("Unsupported file type. Please choose a .csv or .json file.");
+        return;
+      }
+
+      if (file.size === 0) {
+        showError("The selected file is empty.");
+        return;
+      }
+
+      try {
+        if (extension === "csv") {
+          if (!window.Papa) {
+            throw new Error("The CSV parser could not be loaded. Check your internet connection.");
+          }
+
+          Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (result) => {
+              try {
+                if (result.errors && result.errors.length) {
+                  throw new Error("CSV parsing failed: " + result.errors[0].message);
+                }
+                initStudio(result.data);
+              } catch (error) {
+                showError(error.message || "Could not process this CSV file.");
+              }
+            },
+            error: (error) => {
+              showError(error.message || "Could not read this CSV file.");
+            }
+          });
+          return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target.result);
+            const rows = Array.isArray(parsed) ? parsed : [parsed];
+            initStudio(rows);
+          } catch (error) {
+            showError(
+              error instanceof SyntaxError
+                ? "Invalid JSON. Check the file format and try again."
+                : error.message || "Could not process this JSON file."
+            );
+          }
+        };
+
+        reader.onerror = () => showError("The selected file could not be read.");
+        reader.readAsText(file);
+      } catch (error) {
+        showError(error.message || "The file could not be processed.");
+      }
+    }
+
+    function initStudio(data) {
+      try {
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("No dataset rows were found. Check that the file is not empty.");
+        }
+
+        const rows = data.filter(row =>
+          row && typeof row === "object" && !Array.isArray(row)
+        );
+
+        if (!rows.length) {
+          throw new Error("The file must contain a list of data records.");
+        }
+
+        const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
+
+        if (!columns.length) {
+          throw new Error("No columns were found. Check the file headers and contents.");
+        }
+
+        // Give every row the same set of columns.
+        const normalizedRows = rows.map(row => {
+          const normalized = {};
+          columns.forEach(column => {
+            normalized[column] = row[column] === undefined ? null : row[column];
+          });
+          return normalized;
+        });
+
+        rawData = normalizedRows;
+        activeData = [...rawData];
+
+        inferSchema();
+        computeStatistics();
+        setupControls();
+        renderTable();
+        renderChart();
+
+        document.getElementById("emptyState").hidden = true;
+        document.getElementById("statsSection").style.display = "block";
+        document.getElementById("chartSection").style.display = "block";
+        document.getElementById("filterSection").style.display = "block";
+        clearError();
+      } catch (error) {
+        showError(error.message || "The dataset could not be processed.");
+      }
+    }
+
+    function inferSchema() {
+      schema = {};
+      const columns = Object.keys(rawData[0] || {});
+
+      columns.forEach(column => {
+        let numericCount = 0;
+        let nonMissingCount = 0;
+        const sampleSize = Math.min(rawData.length, 100);
+
+        for (let i = 0; i < sampleSize; i++) {
+          const value = rawData[i][column];
+          if (!isMissing(value)) {
+            nonMissingCount++;
+            if (typeof value === "number" && Number.isFinite(value)) numericCount++;
+          }
+        }
+
+        schema[column] =
+          nonMissingCount > 0 && numericCount / nonMissingCount > 0.8
+            ? "numeric"
+            : "categorical";
+      });
+    }
+
+    function getSortedNumericValues(column) {
+      return activeData
+        .map(row => row[column])
+        .filter(value => typeof value === "number" && Number.isFinite(value))
+        .sort((a, b) => a - b);
+    }
+
+    function computeStatistics() {
+      const columns = Object.keys(schema);
+      let missingTotal = 0;
+      let numericColumnCount = 0;
+      const tbody = document.getElementById("summaryTableBody");
+      tbody.replaceChildren();
+
+      columns.forEach(column => {
+        const isNumeric = schema[column] === "numeric";
+        if (isNumeric) numericColumnCount++;
+
+        const values = activeData.map(row => row[column]);
+        const missingCount = values.filter(isMissing).length;
+        missingTotal += missingCount;
+
+        let mean = "-";
+        let median = "-";
+        let stdDev = "-";
+        let q1 = "-";
+        let q3 = "-";
+        let iqr = "-";
+
+        if (isNumeric) {
+          const numbers = getSortedNumericValues(column);
+
+          if (numbers.length) {
+            const average = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
+            const middle = Math.floor(numbers.length / 2);
+            const medianValue = numbers.length % 2 === 0
+              ? (numbers[middle - 1] + numbers[middle]) / 2
+              : numbers[middle];
+
+            const variance = numbers.reduce(
+              (sum, value) => sum + Math.pow(value - average, 2),
+              0
+            ) / (numbers.length > 1 ? numbers.length - 1 : 1);
+
+            const q1Value = numbers[Math.floor((numbers.length - 1) * 0.25)];
+            const q3Value = numbers[Math.floor((numbers.length - 1) * 0.75)];
+
+            mean = average.toFixed(2);
+            median = medianValue.toFixed(2);
+            stdDev = Math.sqrt(variance).toFixed(2);
+            q1 = q1Value.toFixed(2);
+            q3 = q3Value.toFixed(2);
+            iqr = (q3Value - q1Value).toFixed(2);
+          }
+        }
+
+        const row = document.createElement("tr");
+        const cells = [
+          column,
+          schema[column],
+          activeData.length
+            ? ((missingCount / activeData.length) * 100).toFixed(1) + "%"
+            : "0.0%",
+          mean,
+          median,
+          stdDev,
+          q1,
+          q3,
+          iqr
+        ];
+
+        cells.forEach((value, index) => {
+          const cell = document.createElement("td");
+          if (index === 0) {
+            const strong = document.createElement("strong");
+            strong.textContent = value;
+            cell.appendChild(strong);
+          } else if (index === 1) {
+            const badge = document.createElement("span");
+            badge.className = "badge " + (isNumeric ? "badge-num" : "badge-cat");
+            badge.textContent = value;
+            cell.appendChild(badge);
+          } else {
+            cell.textContent = value;
+          }
+          row.appendChild(cell);
+        });
+
+        tbody.appendChild(row);
+      });
+
+      document.getElementById("metaRows").textContent = activeData.length.toLocaleString();
+      document.getElementById("metaCols").textContent = columns.length.toLocaleString();
+      document.getElementById("metaNumCols").textContent = numericColumnCount.toLocaleString();
+      document.getElementById("metaCatCols").textContent =
+        (columns.length - numericColumnCount).toLocaleString();
+      document.getElementById("metaMissing").textContent = missingTotal.toLocaleString();
+    }
+
+    function setupControls() {
+      const xSelect = document.getElementById("columnX");
+      const ySelect = document.getElementById("columnY");
+      const filterSelect = document.getElementById("filterColumn");
+
+      xSelect.replaceChildren();
+      ySelect.replaceChildren();
+      filterSelect.replaceChildren();
+
+      Object.keys(schema).forEach(column => {
+        const xOption = document.createElement("option");
+        xOption.value = column;
+        xOption.textContent = column;
+        xSelect.appendChild(xOption);
+
+        const filterOption = document.createElement("option");
+        filterOption.value = column;
+        filterOption.textContent = column;
+        filterSelect.appendChild(filterOption);
+
+        if (schema[column] === "numeric") {
+          const yOption = document.createElement("option");
+          yOption.value = column;
+          yOption.textContent = column;
+          ySelect.appendChild(yOption);
+        }
+      });
+
+      updateAxisOptions();
+    }
+
+    function updateAxisOptions() {
+      const chartType = document.getElementById("chartType").value;
+      const yWrapper = document.getElementById("columnYWrapper");
+      const ySelect = document.getElementById("columnY");
+      const numericColumns = Object.keys(schema).filter(column => schema[column] === "numeric");
+
+      yWrapper.style.display = chartType === "scatter" ? "inline-flex" : "none";
+      ySelect.disabled = numericColumns.length === 0;
+    }
+
+    function renderChart() {
+      const canvas = document.getElementById("canvasChart");
+      const emptyMessage = document.getElementById("chartEmptyMessage");
+      const chartType = document.getElementById("chartType").value;
+      const xColumn = document.getElementById("columnX").value;
+      const yColumn = document.getElementById("columnY").value;
+
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+
+      if (!activeData.length || !xColumn) {
+        emptyMessage.hidden = false;
+        return;
+      }
+
+      emptyMessage.hidden = true;
+
+      const isScatter = chartType === "scatter";
+      const labels = [];
+      let chartData = [];
+      let chartKind = chartType;
+
+      if (isScatter) {
+        if (!yColumn) {
+          emptyMessage.textContent = "Scatter plots require at least one numeric feature.";
+          emptyMessage.hidden = false;
+          return;
+        }
+
+        // Limit plotted points to keep very large files responsive.
+        const validRows = activeData.filter(row =>
+          typeof row[xColumn] === "number" &&
+          Number.isFinite(row[xColumn]) &&
+          typeof row[yColumn] === "number" &&
+          Number.isFinite(row[yColumn])
+        );
+
+        const maxPoints = 5000;
+        const stride = Math.max(1, Math.ceil(validRows.length / maxPoints));
+
+        chartData = validRows
+          .filter((row, index) => index % stride === 0)
+          .map(row => ({ x: row[xColumn], y: row[yColumn] }));
+      } else if (schema[xColumn] === "numeric") {
+        const values = activeData
+          .map(row => row[xColumn])
+          .filter(value => typeof value === "number" && Number.isFinite(value));
+
+        if (!values.length) {
+          emptyMessage.textContent = "No numeric values are available for this feature.";
+          emptyMessage.hidden = false;
+          return;
+        }
+
+        let min = Infinity;
+        let max = -Infinity;
+        for (const value of values) {
+          if (value < min) min = value;
+          if (value > max) max = value;
+        }
+
+        const step = (max - min) / 5 || 1;
+        const bins = [0, 0, 0, 0, 0];
+
+        for (let i = 0; i < 5; i++) {
+          labels.push(
+            `${(min + i * step).toFixed(1)} - ${(min + (i + 1) * step).toFixed(1)}`
+          );
+        }
+
+        values.forEach(value => {
+          let index = Math.floor((value - min) / step);
+          if (index >= 5) index = 4;
+          if (index < 0) index = 0;
+          bins[index]++;
+        });
+
+        chartData = bins;
+      } else {
+        const frequencies = new Map();
+
+        activeData.forEach(row => {
+          const value = isMissing(row[xColumn]) ? "Missing" : String(row[xColumn]);
+          frequencies.set(value, (frequencies.get(value) || 0) + 1);
+        });
+
+        const sorted = [...frequencies.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
+
+        sorted.forEach(([label, count]) => {
+          labels.push(label);
+          chartData.push(count);
+        });
+      }
+
+      if (isScatter && chartData.length === 0) {
+        emptyMessage.textContent = "No valid numeric pairs are available for this scatter plot.";
+        emptyMessage.hidden = false;
+        return;
+      }
+
+      emptyMessage.textContent = "No rows match the current filter.";
+
+      try {
+        chartInstance = new Chart(canvas.getContext("2d"), {
+          type: chartKind,
+          data: {
+            labels: isScatter ? undefined : labels,
+            datasets: [{
+              label: isScatter ? `${xColumn} vs ${yColumn}` : `${xColumn} Frequency`,
+              data: chartData,
+              backgroundColor: "rgba(37, 99, 235, 0.65)",
+              borderColor: "rgba(37, 99, 235, 1)",
+              borderWidth: 1.5,
+              fill: chartKind === "line",
+              showLine: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            parsing: isScatter ? false : true,
+            scales: {
+              x: isScatter ? { type: "linear", title: { display: true, text: xColumn } } : {},
+              y: isScatter
+                ? { type: "linear", title: { display: true, text: yColumn } }
+                : { beginAtZero: true }
+            }
+          }
+        });
+      } catch (error) {
+        showError("The chart could not be rendered: " + (error.message || "unknown error"));
+      }
+    }
+
+    function renderTable() {
+      const thead = document.getElementById("previewThead");
+      const tbody = document.getElementById("previewTbody");
+      const notice = document.getElementById("tableNotice");
+      const columns = Object.keys(schema);
+
+      thead.replaceChildren();
+      tbody.replaceChildren();
+
+      const headerRow = document.createElement("tr");
+      columns.forEach(column => {
+        const th = document.createElement("th");
+        th.textContent = column;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      if (!activeData.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = Math.max(columns.length, 1);
+        cell.textContent = "No rows match this filter. Try a different condition or reset the filter.";
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        notice.textContent = "Showing 0 rows.";
+        return;
+      }
+
+      activeData.slice(0, 10).forEach(dataRow => {
+        const row = document.createElement("tr");
+
+        columns.forEach(column => {
+          const cell = document.createElement("td");
+          const value = dataRow[column];
+          cell.textContent = isMissing(value) ? "—" : String(value);
+          row.appendChild(cell);
+        });
+
+        tbody.appendChild(row);
+      });
+
+      notice.textContent = `Showing top ${Math.min(activeData.length, 10)} of ${activeData.length.toLocaleString()} rows.`;
+    }
+
+    function applyFilter() {
+      if (!rawData.length) {
+        showError("Load a dataset before applying a filter.");
+        return;
+      }
+
+      clearError();
+
+      const column = document.getElementById("filterColumn").value;
+      const operator = document.getElementById("filterOperator").value;
+      const rawValue = document.getElementById("filterValue").value.trim();
+
+      if (!column) {
+        showError("Choose a column to filter.");
+        return;
+      }
+
+      if (!rawValue) {
+        showError("Enter a threshold or value for the filter.");
+        return;
+      }
+
+      const comparisonValue =
+        rawValue !== "" && Number.isFinite(Number(rawValue))
+          ? Number(rawValue)
+          : rawValue;
+
+      activeData = rawData.filter(row => {
+        const item = row[column];
+
+        if (operator === ">") {
+          return typeof item === "number" && Number(item) > Number(comparisonValue);
+        }
+        if (operator === "<") {
+          return typeof item === "number" && Number(item) < Number(comparisonValue);
+        }
+        return String(item) === String(comparisonValue);
+      });
+
+      computeStatistics();
+      renderTable();
+      renderChart();
+    }
+
+    function resetFilter() {
+      if (!rawData.length) return;
+
+      clearError();
+      activeData = [...rawData];
+      document.getElementById("filterValue").value = "";
+      computeStatistics();
+      renderTable();
+      renderChart();
+    }
+
+    function exportCSV() {
+      try {
+        if (!activeData.length) {
+          showError("There are no rows to export.");
+          return;
+        }
+
+        if (!window.Papa) {
+          throw new Error("The CSV export library could not be loaded.");
+        }
+
+        const csv = Papa.unparse(activeData);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "DataCanvas_Filtered_Dataset.csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        clearError();
+      } catch (error) {
+        showError(error.message || "CSV export failed.");
+      }
+    }
+
+    function exportChartPNG() {
+      try {
+        if (!chartInstance) {
+          showError("There is no chart to export yet.");
+          return;
+        }
+
+        const link = document.createElement("a");
+        link.download = "DataCanvas_Chart.png";
+        link.href = chartInstance.toBase64Image();
+        link.click();
+        clearError();
+      } catch (error) {
+        showError(error.message || "Chart export failed.");
+      }
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+      const isDark = document.body.classList.contains("dark");
+      document.getElementById("themeBtn").textContent =
+        isDark ? "☀️ Light Mode" : "🌙 Dark Mode";
+
+      if (chartInstance) renderChart();
+    }
+
+    function loadSampleIris() {
+      const iris = [
+        { sepal_length: 5.1, sepal_width: 3.5, petal_length: 1.4, petal_width: 0.2, species: "setosa" },
+        { sepal_length: 4.9, sepal_width: 3.0, petal_length: 1.4, petal_width: 0.2, species: "setosa" },
+        { sepal_length: 4.7, sepal_width: 3.2, petal_length: 1.3, petal_width: 0.2, species: "setosa" },
+        { sepal_length: 7.0, sepal_width: 3.2, petal_length: 4.7, petal_width: 1.4, species: "versicolor" },
+        { sepal_length: 6.4, sepal_width: 3.2, petal_length: 4.5, petal_width: 1.5, species: "versicolor" },
+        { sepal_length: 6.9, sepal_width: 3.1, petal_length: 4.9, petal_width: 1.5, species: "versicolor" },
+        { sepal_length: 6.3, sepal_width: 3.3, petal_length: 6.0, petal_width: 2.5, species: "virginica" },
+        { sepal_length: 5.8, sepal_width: 2.7, petal_length: 5.1, petal_width: 1.9, species: "virginica" },
+        { sepal_length: 7.1, sepal_width: 3.0, petal_length: 5.9, petal_width: 2.1, species: "virginica" },
+        { sepal_length: 6.3, sepal_width: 2.9, petal_length: 5.6, petal_width: 1.8, species: "virginica" }
+      ];
+
+      clearError();
+      initStudio(iris);
+    }
+  </script>
+</body>
+</html>
