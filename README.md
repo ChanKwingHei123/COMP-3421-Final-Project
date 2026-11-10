@@ -1,7 +1,7 @@
 # DataCanvas: Client-Side Exploratory Data Analysis Studio
 ### COMP3421 Web Application Design and Development — Final Project
 **Author:** Chan Kwing Hei (Student ID: 25128829D)  
-**Course Route:** Hand-coding Route (+5 Bonus Claimed)  
+**Course Route:** AI Vibe coding route
 **Deployment Link:** [https://github.io](https://github.io) (Example)
 
 ---
